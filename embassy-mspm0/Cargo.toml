@@ -3,7 +3,7 @@ name = "embassy-mspm0"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Embassy Hardware Abstraction Layer (HAL) for Texas Instruments MSPM0 and AM13 series microcontrollers"
+description = "Embassy Hardware Abstraction Layer (HAL) for Texas Instruments MSPM0 and AM13E2x microcontrollers"
 keywords = ["embedded", "async", "mspm0", "am13", "hal"]
 categories = ["embedded", "hardware-support", "no-std", "asynchronous"]
 repository = "https://github.com/embassy-rs/embassy"
@@ -32,6 +32,7 @@ build = [
     {target = "thumbv6m-none-eabi", features = ["defmt", "mspm0l1306rhb", "time-driver-any", "executor-thread", "executor-interrupt"]},
     {target = "thumbv8m.main-none-eabihf", features = ["defmt", "am13e23019gpm", "time-driver-any"]},
     {target = "thumbv8m.main-none-eabihf", features = ["defmt", "am13e23018pt", "time-driver-any"]},
+    {target = "thumbv8m.main-none-eabihf", features = ["defmt", "am13e232n9pdt", "time-driver-any"]},
 ]
 
 [package.metadata.embassy_docs]
@@ -74,8 +75,8 @@ cortex-m = "0.7.6"
 critical-section = "1.2.0"
 
 # mspm0-metapac = { version = "" }
-# Downstream of mspm0-rs/mspm0-data-generated, with the AM13E230x added.
-mspm0-metapac = { git = "https://github.com/nilabhanand-ti/mspm0-data-generated/", tag = "mspm0-data-7e8acaf44500a2a68fb1642f7cbd6f14d99aee7b" }
+# Downstream of mspm0-rs/mspm0-data-generated, with the AM13E2x added.
+mspm0-metapac = { git = "https://github.com/nilabhanand-ti/mspm0-data-generated/", tag = "mspm0-data-457cc030ce027c6c779c701324a70329785a4fcd" }
 rand-core-10 = { package = "rand_core", version = "0.10" }
 # Force no cache padding or the types are too large.
 maitake-sync = { version = "0.3.0", default-features = false, features = ["critical-section", "no-cache-pad"]}
@@ -88,7 +89,7 @@ proc-macro2 = "1.0.94"
 quote = "1.0.40"
 
 # mspm0-metapac = { version = "", default-features = false, features = ["metadata"] }
-mspm0-metapac = { git = "https://github.com/nilabhanand-ti/mspm0-data-generated/", tag = "mspm0-data-7e8acaf44500a2a68fb1642f7cbd6f14d99aee7b", default-features = false, features = ["metadata"] }
+mspm0-metapac = { git = "https://github.com/nilabhanand-ti/mspm0-data-generated/", tag = "mspm0-data-457cc030ce027c6c779c701324a70329785a4fcd", default-features = false, features = ["metadata"] }
 
 [features]
 default = ["rt"]
@@ -353,6 +354,14 @@ mspm0l2228pm = ["mspm0-metapac/mspm0l2228pm"]
 mspm0l2228pn = ["mspm0-metapac/mspm0l2228pn"]
 msps003f3pw20 = ["mspm0-metapac/msps003f3pw20"]
 msps003f4pw20 = ["mspm0-metapac/msps003f4pw20"]
+am13e23017gpm = ["mspm0-metapac/am13e23017gpm"]
+am13e23017gpz = ["mspm0-metapac/am13e23017gpz"]
+am13e23017hpm = ["mspm0-metapac/am13e23017hpm"]
+am13e23017hpz = ["mspm0-metapac/am13e23017hpz"]
+am13e23017pdt = ["mspm0-metapac/am13e23017pdt"]
+am13e23017pn = ["mspm0-metapac/am13e23017pn"]
+am13e23017pt = ["mspm0-metapac/am13e23017pt"]
+am13e23017rgz = ["mspm0-metapac/am13e23017rgz"]
 am13e23018gpm = ["mspm0-metapac/am13e23018gpm"]
 am13e23018gpz = ["mspm0-metapac/am13e23018gpz"]
 am13e23018hpm = ["mspm0-metapac/am13e23018hpm"]
@@ -369,3 +378,33 @@ am13e23019pdt = ["mspm0-metapac/am13e23019pdt"]
 am13e23019pn = ["mspm0-metapac/am13e23019pn"]
 am13e23019pt = ["mspm0-metapac/am13e23019pt"]
 am13e23019rgz = ["mspm0-metapac/am13e23019rgz"]
+am13e23218bga100 = ["mspm0-metapac/am13e23218bga100"]
+am13e23218bga121 = ["mspm0-metapac/am13e23218bga121"]
+am13e23218bga144 = ["mspm0-metapac/am13e23218bga144"]
+am13e23218bga99 = ["mspm0-metapac/am13e23218bga99"]
+am13e23218lqfp100g = ["mspm0-metapac/am13e23218lqfp100g"]
+am13e23218lqfp64g = ["mspm0-metapac/am13e23218lqfp64g"]
+am13e23218mcmbga100 = ["mspm0-metapac/am13e23218mcmbga100"]
+am13e23218mcmbga121 = ["mspm0-metapac/am13e23218mcmbga121"]
+am13e23218pdt = ["mspm0-metapac/am13e23218pdt"]
+am13e23218wcsp49 = ["mspm0-metapac/am13e23218wcsp49"]
+am13e23219bga100 = ["mspm0-metapac/am13e23219bga100"]
+am13e23219bga121 = ["mspm0-metapac/am13e23219bga121"]
+am13e23219bga144 = ["mspm0-metapac/am13e23219bga144"]
+am13e23219bga99 = ["mspm0-metapac/am13e23219bga99"]
+am13e23219lqfp100g = ["mspm0-metapac/am13e23219lqfp100g"]
+am13e23219lqfp64g = ["mspm0-metapac/am13e23219lqfp64g"]
+am13e23219mcmbga100 = ["mspm0-metapac/am13e23219mcmbga100"]
+am13e23219mcmbga121 = ["mspm0-metapac/am13e23219mcmbga121"]
+am13e23219pdt = ["mspm0-metapac/am13e23219pdt"]
+am13e23219wcsp49 = ["mspm0-metapac/am13e23219wcsp49"]
+am13e232n9bga100 = ["mspm0-metapac/am13e232n9bga100"]
+am13e232n9bga121 = ["mspm0-metapac/am13e232n9bga121"]
+am13e232n9bga144 = ["mspm0-metapac/am13e232n9bga144"]
+am13e232n9bga99 = ["mspm0-metapac/am13e232n9bga99"]
+am13e232n9lqfp100g = ["mspm0-metapac/am13e232n9lqfp100g"]
+am13e232n9lqfp64g = ["mspm0-metapac/am13e232n9lqfp64g"]
+am13e232n9mcmbga100 = ["mspm0-metapac/am13e232n9mcmbga100"]
+am13e232n9mcmbga121 = ["mspm0-metapac/am13e232n9mcmbga121"]
+am13e232n9pdt = ["mspm0-metapac/am13e232n9pdt"]
+am13e232n9wcsp49 = ["mspm0-metapac/am13e232n9wcsp49"]

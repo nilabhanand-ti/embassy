@@ -149,9 +149,16 @@ fn get_chip_cfgs(chip_name: &str) -> Vec<String> {
         cfgs.push("mspm0l222x".to_string());
     }
 
-    // AM13E230x: Cortex-M33 with MSPM0 GPIO, DMA, timers and UNICOMM.
+    // AM13E2x: Cortex-M33 with MSPM0 GPIO, DMA, timers and UNICOMM. `am13` is the family the
+    // drivers check; the per-family cfgs are for what differs.
     if chip_name.starts_with("am13e230") {
+        cfgs.push("am13".to_string());
         cfgs.push("am13e230x".to_string());
+    }
+
+    if chip_name.starts_with("am13e232") {
+        cfgs.push("am13".to_string());
+        cfgs.push("am13e232x".to_string());
     }
 
     cfgs

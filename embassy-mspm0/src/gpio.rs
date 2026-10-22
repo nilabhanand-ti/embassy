@@ -1090,7 +1090,7 @@ fn GPIOB() {
     irq_handler(pac::GPIOB, Port::PortB);
 }
 
-// The AM13E230x has an interrupt for every port.
+// The AM13E2x has an interrupt for every port.
 #[cfg(all(feature = "rt", gpioc_interrupt))]
 #[interrupt]
 fn GPIOC() {

@@ -437,8 +437,8 @@ pub(crate) unsafe fn init(_cs: CriticalSection, burst_size: BurstSize, round_rob
         prio.set_roundrobin(round_robin);
     });
     pac::DMA.int_event(0).imask().modify(|w| {
-        // The AM13E230x DMA does not report data errors.
-        #[cfg(not(am13e230x))]
+        // The AM13E2x DMA does not report data errors.
+        #[cfg(not(am13))]
         w.set_dataerr(true);
         w.set_addrerr(true);
     });
@@ -643,7 +643,7 @@ fn on_irq(dma: pac::dma::Dma) {
     let mis = events.mis().read();
 
     // TODO: Handle DATAERR and ADDRERR? However we do not know which channel causes an error.
-    #[cfg(not(am13e230x))]
+    #[cfg(not(am13))]
     if mis.dataerr() {
         panic!("DMA data error");
     }

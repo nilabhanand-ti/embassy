@@ -1,4 +1,4 @@
-//! SYSCTL configuration for AM13E230x.
+//! SYSCTL configuration for the AM13E2x (AM13E230x and AM13E232x).
 
 use mspm0_metapac::sysctl::vals;
 

@@ -13,7 +13,7 @@ pub(crate) mod fmt;
 mod macros;
 
 // The AM13 ADC is a different peripheral.
-#[cfg(not(am13e230x))]
+#[cfg(not(am13))]
 pub mod adc;
 pub mod dma;
 #[cfg(feature = "_executor")]
@@ -24,8 +24,8 @@ pub mod gpio;
 pub mod i2c;
 #[cfg(not(unicomm))]
 pub mod i2c_target;
-#[cfg(all(feature = "low-power", am13e230x))]
-compile_error!("the `low-power` feature is not supported on the AM13E230x yet");
+#[cfg(all(feature = "low-power", am13))]
+compile_error!("the `low-power` feature is not supported on the AM13E2x yet");
 #[cfg(feature = "low-power")]
 pub mod low_power;
 #[cfg(any(mspm0g150x, mspm0g151x, mspm0g350x, mspm0g351x))]
@@ -34,7 +34,7 @@ pub mod sysctl;
 pub mod tim;
 #[cfg(any(mspm0g150x, mspm0g151x, mspm0g350x, mspm0g351x, mspm0l122x, mspm0l222x))]
 pub mod trng;
-// Unicomm instances are UARTs where the UART registers are described (AM13E230x).
+// Unicomm instances are UARTs where the UART registers are described (AM13E2x).
 #[cfg(any(not(unicomm), unicomm_uart))]
 pub mod uart;
 pub mod wwdt;
@@ -188,9 +188,9 @@ pub fn init(config: Config) -> Peripherals {
 
         // TODO: Further clock configuration
 
-        // The AM13E230x has neither MFCLK nor a BOR threshold. It runs from SYSOSC (32 MHz) out
+        // The AM13E2x has neither MFCLK nor a BOR threshold. It runs from SYSOSC (32 MHz) out
         // of reset, which is what the HAL assumes.
-        #[cfg(not(am13e230x))]
+        #[cfg(not(am13))]
         {
             pac::SYSCTL.mclkcfg().modify(|w| {
                 // Enable MFCLK
@@ -229,7 +229,7 @@ pub fn init(config: Config) -> Peripherals {
         }
 
         // Every port has an interrupt of its own.
-        #[cfg(am13e230x)]
+        #[cfg(am13)]
         unsafe {
             use crate::_generated::interrupt::typelevel::Interrupt;
             crate::interrupt::typelevel::GPIOA::enable();

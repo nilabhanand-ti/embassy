@@ -19,7 +19,7 @@ use crate::{Peri, pac};
 #[cfg_attr(mspm0h321x, path = "h321x.rs")]
 #[cfg_attr(any(mspm0l110x, mspm0l130x, mspm0l134x), path = "l_typea.rs")]
 #[cfg_attr(any(mspm0l122x, mspm0l222x), path = "l_typeb.rs")]
-#[cfg_attr(am13e230x, path = "am13e230x.rs")]
+#[cfg_attr(am13, path = "am13.rs")]
 mod inner;
 
 pub use inner::ClkOutSource;
@@ -162,20 +162,20 @@ pub(crate) fn mclk_frequency() -> u32 {
     32_000_000
 }
 
-/// The AM13E230x runs MCLK from SYSOSC at its 32 MHz base frequency out of reset.
+/// The AM13E2x runs MCLK from SYSOSC at its 32 MHz base frequency out of reset.
 ///
 /// While MCLK comes from SYSOSC, SYSCTL bypasses the MCLK/2 and MCLK/4 dividers, so the MCLK/2
 /// clock of the UNICOMM UARTs and the MCLK/4 bus clock (ULPCLK) run at MCLK too (AM13E230x TRM,
 /// section 3.4.3.3).
 // TODO: Compute these once SYSPLL/HFCLK can be configured.
-#[cfg(am13e230x)]
+#[cfg(am13)]
 #[allow(dead_code)]
 pub(crate) fn mclk_frequency() -> u32 {
     32_000_000
 }
 
 /// Frequency of MCLK/2, the functional clock of the UNICOMM UARTs.
-#[cfg(am13e230x)]
+#[cfg(am13)]
 #[allow(dead_code)]
 pub(crate) fn mclk_div2_frequency() -> u32 {
     mclk_frequency()
