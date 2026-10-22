@@ -31,16 +31,20 @@ fn generate_code(cfgs: &mut CfgSet) {
         PathBuf::from(env::var_os("OUT_DIR").unwrap()).display(),
     );
 
-    cfgs.declare_all(&["gpio_pb", "gpio_pc", "int_group1", "unicomm"]);
+    cfgs.declare_all(&["gpio_pb", "gpio_pc", "gpio_pd", "int_group1", "unicomm", "unicomm_uart"]);
 
     let chip_name = match env::vars()
         .map(|(a, _)| a)
-        .filter(|x| x.starts_with("CARGO_FEATURE_MSPM0") || x.starts_with("CARGO_FEATURE_MSPS"))
+        .filter(|x| {
+            x.starts_with("CARGO_FEATURE_MSPM0")
+                || x.starts_with("CARGO_FEATURE_MSPS")
+                || x.starts_with("CARGO_FEATURE_AM13")
+        })
         .get_one()
     {
         Ok(x) => x,
-        Err(GetOneError::None) => panic!("No mspm0xx/mspsxx Cargo feature enabled"),
-        Err(GetOneError::Multiple) => panic!("Multiple mspm0xx/mspsxx Cargo features enabled"),
+        Err(GetOneError::None) => panic!("No mspm0xx/mspsxx/am13xx Cargo feature enabled"),
+        Err(GetOneError::Multiple) => panic!("Multiple mspm0xx/mspsxx/am13xx Cargo features enabled"),
     }
     .strip_prefix("CARGO_FEATURE_")
     .unwrap()
@@ -143,6 +147,11 @@ fn get_chip_cfgs(chip_name: &str) -> Vec<String> {
 
     if chip_name.starts_with("mspm0l222") {
         cfgs.push("mspm0l222x".to_string());
+    }
+
+    // AM13E230x: Cortex-M33 with MSPM0 GPIO, DMA, timers and UNICOMM.
+    if chip_name.starts_with("am13e230") {
+        cfgs.push("am13e230x".to_string());
     }
 
     cfgs
@@ -293,6 +302,7 @@ fn get_singletons(cfgs: &mut common::CfgSet) -> Vec<Singleton> {
                 match peripheral.name {
                     "GPIOB" => cfgs.enable("gpio_pb"),
                     "GPIOC" => cfgs.enable("gpio_pc"),
+                    "GPIOD" => cfgs.enable("gpio_pd"),
                     _ => (),
                 }
 
@@ -311,6 +321,16 @@ fn get_singletons(cfgs: &mut common::CfgSet) -> Vec<Singleton> {
                 cfgs.enable("unicomm");
                 false
             }
+
+            // The registers of each mode of a unicomm instance. These are driven through the
+            // instance's singleton (UCx), so they get none of their own.
+            "unicommuart" => {
+                if peripheral.version.is_some() {
+                    cfgs.enable("unicomm_uart");
+                }
+                true
+            }
+            "unicommspi" | "unicommi2cc" | "unicommi2ct" => true,
 
             // TODO: Remove after TIMB is fixed
             "tim" if peripheral.name.starts_with("TIMB") => true,
@@ -681,9 +701,15 @@ fn generate_peripheral_instances() -> TokenStream {
 
         let tokens = match peripheral.kind {
             "uart" => Some(quote! { impl_uart_instance!(#peri); }),
+            // A unicomm instance is a UART if it has the UART registers.
+            "unicomm" if unicomm_uart(peripheral.name).is_some() => {
+                let uart = format_ident!("{}", unicomm_uart(peripheral.name).unwrap());
+                Some(quote! { impl_uart_instance!(#peri, #uart); })
+            }
             "i2c" => Some(quote! { impl_i2c_instance!(#peri, #fifo_size); }),
             "wwdt" => Some(quote! { impl_wwdt_instance!(#peri); }),
-            "adc" => Some(quote! { impl_adc_instance!(#peri); }),
+            // The AM13 ADC is not an MSPM0 ADC and has no register block yet.
+            "adc" if peripheral.version.is_some() => Some(quote! { impl_adc_instance!(#peri); }),
             "mathacl" => Some(quote! { impl_mathacl_instance!(#peri); }),
             _ => None,
         };
@@ -742,6 +768,20 @@ fn generate_pin_trait_impls() -> TokenStream {
                 ("uart", "CTS") => Some(quote! { impl_uart_cts_pin!(#peri, #pin_name, #pf); }),
                 ("uart", "RTS") => Some(quote! { impl_uart_rts_pin!(#peri, #pin_name, #pf); }),
 
+                // Unicomm instances which can run as a UART.
+                ("unicomm", "TX") if unicomm_uart(peripheral.name).is_some() => {
+                    Some(quote! { impl_uart_tx_pin!(#peri, #pin_name, #pf); })
+                }
+                ("unicomm", "RX") if unicomm_uart(peripheral.name).is_some() => {
+                    Some(quote! { impl_uart_rx_pin!(#peri, #pin_name, #pf); })
+                }
+                ("unicomm", "CTS") if unicomm_uart(peripheral.name).is_some() => {
+                    Some(quote! { impl_uart_cts_pin!(#peri, #pin_name, #pf); })
+                }
+                ("unicomm", "RTS") if unicomm_uart(peripheral.name).is_some() => {
+                    Some(quote! { impl_uart_rts_pin!(#peri, #pin_name, #pf); })
+                }
+
                 _ => None,
             };
 
@@ -762,13 +802,17 @@ fn select_gpio_features(cfgs: &mut CfgSet) {
         "gpioa_group",
         "gpiob_interrupt",
         "gpiob_group",
+        "gpioc_interrupt",
         "gpioc_group",
+        "gpiod_interrupt",
     ]);
 
     for interrupt in METADATA.interrupts.iter() {
         match interrupt.name {
             "GPIOA" => cfgs.enable("gpioa_interrupt"),
             "GPIOB" => cfgs.enable("gpiob_interrupt"),
+            "GPIOC" => cfgs.enable("gpioc_interrupt"),
+            "GPIOD" => cfgs.enable("gpiod_interrupt"),
             _ => (),
         }
     }
@@ -783,6 +827,17 @@ fn select_gpio_features(cfgs: &mut CfgSet) {
             }
         }
     }
+}
+
+/// The UART register block of a unicomm instance, if it has one with registers described.
+fn unicomm_uart(instance: &str) -> Option<&'static str> {
+    let name = format!("{instance}_UART");
+
+    METADATA
+        .peripherals
+        .iter()
+        .find(|p| p.kind == "unicommuart" && p.name == name && p.version.is_some())
+        .map(|p| p.name)
 }
 
 /// rustfmt a given path.

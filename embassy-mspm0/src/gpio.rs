@@ -8,7 +8,10 @@ use maitake_sync::WaitMap;
 
 use crate::pac::gpio::vals::*;
 use crate::pac::gpio::{self};
-#[cfg(all(feature = "rt", any(gpioa_interrupt, gpiob_interrupt)))]
+#[cfg(all(
+    feature = "rt",
+    any(gpioa_interrupt, gpiob_interrupt, gpioc_interrupt, gpiod_interrupt)
+))]
 use crate::pac::interrupt;
 use crate::pac::{self};
 
@@ -64,6 +67,10 @@ pub enum Port {
     /// Port C.
     #[cfg(gpio_pc)]
     PortC = 2,
+
+    /// Port D.
+    #[cfg(gpio_pd)]
+    PortD = 3,
 }
 
 /// GPIO flexible pin.
@@ -1008,6 +1015,8 @@ pub(crate) trait SealedPin {
             1 => pac::GPIOB,
             #[cfg(gpio_pc)]
             2 => pac::GPIOC,
+            #[cfg(gpio_pd)]
+            3 => pac::GPIOD,
             _ => unreachable!(),
         }
     }
@@ -1079,6 +1088,19 @@ fn GPIOA() {
 #[interrupt]
 fn GPIOB() {
     irq_handler(pac::GPIOB, Port::PortB);
+}
+
+// The AM13E230x has an interrupt for every port.
+#[cfg(all(feature = "rt", gpioc_interrupt))]
+#[interrupt]
+fn GPIOC() {
+    irq_handler(pac::GPIOC, Port::PortC);
+}
+
+#[cfg(all(feature = "rt", gpiod_interrupt))]
+#[interrupt]
+fn GPIOD() {
+    irq_handler(pac::GPIOD, Port::PortD);
 }
 
 // These symbols are weakly defined as DefaultHandler and are called by the interrupt group implementation.

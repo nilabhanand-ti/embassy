@@ -11,9 +11,9 @@ use embassy_sync::waitqueue::AtomicWaker;
 use embedded_hal_nb::nb;
 use portable_atomic::AtomicBool;
 
+use super::Regs;
 use crate::gpio::{AnyPin, SealedPin};
 use crate::interrupt::typelevel::Binding;
-use crate::pac::uart::Uart as Regs;
 use crate::uart::{Config, ConfigError, CtsPin, Error, Info, Instance, RtsPin, RxPin, State, TxPin};
 use crate::{Peri, interrupt};
 
@@ -699,7 +699,7 @@ impl<'d> BufferedUart<'d> {
         assert!(!rx_buffer.is_empty());
 
         init_buffers(info, state, Some(tx_buffer), Some(rx_buffer));
-        super::enable(info.regs);
+        super::enable(info);
         super::configure(
             info,
             &state.state,
@@ -746,7 +746,7 @@ impl<'d> BufferedUartRx<'d> {
         let state = self.state;
 
         init_buffers(info, state, None, Some(rx_buffer));
-        super::enable(info.regs);
+        super::enable(info);
         super::configure(info, &self.state.state, config, true, self.rts.is_some(), false, false)?;
 
         info.regs.cpu_int(0).imask().modify(|w| {
@@ -999,7 +999,7 @@ impl<'d> BufferedUartTx<'d> {
         let state = self.state;
 
         init_buffers(info, state, Some(tx_buffer), None);
-        super::enable(info.regs);
+        super::enable(info);
         super::configure(info, &state.state, config, false, false, true, self.cts.is_some())?;
 
         info.regs.cpu_int(0).imask().modify(|w| {

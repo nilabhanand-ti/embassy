@@ -3,8 +3,8 @@ name = "embassy-mspm0"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "Embassy Hardware Abstraction Layer (HAL) for Texas Instruments MSPM0 series microcontrollers"
-keywords = ["embedded", "async", "mspm0", "hal", "embedded-hal"]
+description = "Embassy Hardware Abstraction Layer (HAL) for Texas Instruments MSPM0 and AM13 series microcontrollers"
+keywords = ["embedded", "async", "mspm0", "am13", "hal"]
 categories = ["embedded", "hardware-support", "no-std", "asynchronous"]
 repository = "https://github.com/embassy-rs/embassy"
 documentation = "https://docs.embassy.dev/embassy-mspm0"
@@ -30,6 +30,8 @@ build = [
     {target = "thumbv6m-none-eabi", features = ["defmt", "mspm0l1306rhb", "time-driver-any", "executor-thread"]},
     {target = "thumbv6m-none-eabi", features = ["defmt", "mspm0l1306rhb", "time-driver-any", "executor-interrupt"]},
     {target = "thumbv6m-none-eabi", features = ["defmt", "mspm0l1306rhb", "time-driver-any", "executor-thread", "executor-interrupt"]},
+    {target = "thumbv8m.main-none-eabihf", features = ["defmt", "am13e23019gpm", "time-driver-any"]},
+    {target = "thumbv8m.main-none-eabihf", features = ["defmt", "am13e23018pt", "time-driver-any"]},
 ]
 
 [package.metadata.embassy_docs]
@@ -42,6 +44,7 @@ flavors = [
     { regex_feature = "mspm0l.*", target = "thumbv6m-none-eabi" },
     { regex_feature = "mspm0g.*", target = "thumbv6m-none-eabi" },
     { regex_feature = "mspm0h.*", target = "thumbv6m-none-eabi" },
+    { regex_feature = "am13.*", target = "thumbv8m.main-none-eabihf" },
 ]
 
 [package.metadata.docs.rs]
@@ -71,7 +74,8 @@ cortex-m = "0.7.6"
 critical-section = "1.2.0"
 
 # mspm0-metapac = { version = "" }
-mspm0-metapac = { git = "https://github.com/mspm0-rs/mspm0-data-generated/", tag = "mspm0-data-f78bc71fcc6d74b25c2cae58220d8bf443fb12df" }
+# Downstream of mspm0-rs/mspm0-data-generated, with the AM13E230x added.
+mspm0-metapac = { git = "https://github.com/nilabhanand-ti/mspm0-data-generated/", tag = "mspm0-data-7e8acaf44500a2a68fb1642f7cbd6f14d99aee7b" }
 rand-core-10 = { package = "rand_core", version = "0.10" }
 # Force no cache padding or the types are too large.
 maitake-sync = { version = "0.3.0", default-features = false, features = ["critical-section", "no-cache-pad"]}
@@ -84,7 +88,7 @@ proc-macro2 = "1.0.94"
 quote = "1.0.40"
 
 # mspm0-metapac = { version = "", default-features = false, features = ["metadata"] }
-mspm0-metapac = { git = "https://github.com/mspm0-rs/mspm0-data-generated/", tag = "mspm0-data-f78bc71fcc6d74b25c2cae58220d8bf443fb12df", default-features = false, features = ["metadata"] }
+mspm0-metapac = { git = "https://github.com/nilabhanand-ti/mspm0-data-generated/", tag = "mspm0-data-7e8acaf44500a2a68fb1642f7cbd6f14d99aee7b", default-features = false, features = ["metadata"] }
 
 [features]
 default = ["rt"]
@@ -349,3 +353,19 @@ mspm0l2228pm = ["mspm0-metapac/mspm0l2228pm"]
 mspm0l2228pn = ["mspm0-metapac/mspm0l2228pn"]
 msps003f3pw20 = ["mspm0-metapac/msps003f3pw20"]
 msps003f4pw20 = ["mspm0-metapac/msps003f4pw20"]
+am13e23018gpm = ["mspm0-metapac/am13e23018gpm"]
+am13e23018gpz = ["mspm0-metapac/am13e23018gpz"]
+am13e23018hpm = ["mspm0-metapac/am13e23018hpm"]
+am13e23018hpz = ["mspm0-metapac/am13e23018hpz"]
+am13e23018pdt = ["mspm0-metapac/am13e23018pdt"]
+am13e23018pn = ["mspm0-metapac/am13e23018pn"]
+am13e23018pt = ["mspm0-metapac/am13e23018pt"]
+am13e23018rgz = ["mspm0-metapac/am13e23018rgz"]
+am13e23019gpm = ["mspm0-metapac/am13e23019gpm"]
+am13e23019gpz = ["mspm0-metapac/am13e23019gpz"]
+am13e23019hpm = ["mspm0-metapac/am13e23019hpm"]
+am13e23019hpz = ["mspm0-metapac/am13e23019hpz"]
+am13e23019pdt = ["mspm0-metapac/am13e23019pdt"]
+am13e23019pn = ["mspm0-metapac/am13e23019pn"]
+am13e23019pt = ["mspm0-metapac/am13e23019pt"]
+am13e23019rgz = ["mspm0-metapac/am13e23019rgz"]
