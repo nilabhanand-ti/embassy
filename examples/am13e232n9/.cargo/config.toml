@@ -1,0 +1,7 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# probe-rs has no AM13E230x target yet, so the examples are flashed with DSLite from Code Composer
+# Studio or UniFlash through the LaunchPad's XDS110. Set CCS_ROOT if CCS is not in C:/ti/ccs2101/ccs.
+runner = "python flash.py"
+
+[build]
+target = "thumbv8m.main-none-eabihf"

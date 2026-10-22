@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cargo runner: flash an ELF to the LP-AM13E230 with DSLite and start it.
+"""Cargo runner: flash an ELF to an AM13E2x LaunchPad with DSLite and start it.
 
 probe-rs has no AM13E230x support yet. DSLite ships with Code Composer Studio and UniFlash and
 drives the LaunchPad's XDS110 with TI's flash loader, which also knows the ECC rules of the
@@ -44,7 +44,8 @@ def main() -> None:
         sys.exit("usage: flash.py <elf>")
 
     elf = Path(sys.argv[1])
-    ccxml = Path(__file__).resolve().parent / "LP_AM13E230.ccxml"
+    # The target configuration of the board, next to this script.
+    (ccxml,) = Path(__file__).resolve().parent.glob("*.ccxml")
 
     # DSLite picks the loader by file extension; cargo's binaries have none.
     with tempfile.TemporaryDirectory() as tmp:
@@ -52,7 +53,7 @@ def main() -> None:
         shutil.copyfile(elf, image)
 
         # Program and verify, then apply a system reset (reset operation 1, see `DSLite flash
-        # -c LP_AM13E230.ccxml -R`), which starts the program from a clean device state. Running
+        # -c <board>.ccxml -R`), which starts the program from a clean device state. Running
         # from the entry point right after loading (`-u`) leaves the device as the flash loader
         # left it, and the program does not start reliably.
         cmd = [
