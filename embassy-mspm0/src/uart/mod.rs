@@ -636,6 +636,7 @@ impl<'d, M: Mode> UartRx<'d, M> {
     fn enable_and_configure(&mut self, config: &Config) -> Result<(), ConfigError> {
         let info = self.info;
 
+        let _rts = IdleOutput::hold(&self.rts);
         enable(info);
         configure(info, self.state, config, true, self.rts.is_some(), false, false)?;
 
@@ -666,6 +667,7 @@ impl<'d, M: Mode> UartTx<'d, M> {
         let info = self.info;
         let state = self.state;
 
+        let _tx = IdleOutput::hold(&self.tx);
         enable(info);
         configure(info, state, config, false, false, true, self.cts.is_some())?;
 
@@ -710,6 +712,7 @@ impl<'d, M: Mode> Uart<'d, M> {
         let info = self.rx.info;
         let state = self.rx.state;
 
+        let idle = (IdleOutput::hold(&self.tx.tx), IdleOutput::hold(&self.rx.rts));
         enable(info);
         configure(
             info,
@@ -720,6 +723,7 @@ impl<'d, M: Mode> Uart<'d, M> {
             true,
             self.tx.cts.is_some(),
         )?;
+        drop(idle);
 
         info.interrupt.unpend();
         unsafe { info.interrupt.enable() };
@@ -784,6 +788,48 @@ fn enable(info: &Info) {
     cortex_m::asm::delay(16);
 
     info.unicomm.ipmode().write(|w| w.set_select(uc::Select::Uart));
+}
+
+/// Holds an output of the UART (TX or RTS) at its idle level through GPIO while the UART is powered
+/// up, reset and configured, and gives the pin back to the UART when dropped.
+///
+/// The constructors connect the pins before the UART is enabled, and until then the UART drives its
+/// outputs low. The other end takes that for a start bit: it receives a stray byte and, when the
+/// first characters follow at once, can lose the character framing for the rest of the string.
+pub(crate) struct IdleOutput {
+    pincm: usize,
+    saved: crate::pac::iomux::regs::Pincm,
+    block: crate::pac::gpio::Gpio,
+    bit: usize,
+}
+
+impl IdleOutput {
+    pub(crate) fn hold(pin: &Option<Peri<'_, AnyPin>>) -> Option<Self> {
+        let pin = pin.as_ref()?;
+        let pincm = pin._pin_cm() as usize;
+        let saved = crate::pac::IOMUX.pincm(pincm).read();
+        let block = pin.block();
+        let bit = pin.bit_index();
+
+        block.doutset31_0().write(|w| w.set_dio(bit, true));
+        block.doeset31_0().write(|w| w.set_dio(bit, true));
+        // INV is kept, so an inverted output idles low.
+        crate::pac::IOMUX.pincm(pincm).modify(|w| w.set_pf(crate::gpio::GPIO_PF));
+
+        Some(Self {
+            pincm,
+            saved,
+            block,
+            bit,
+        })
+    }
+}
+
+impl Drop for IdleOutput {
+    fn drop(&mut self) {
+        crate::pac::IOMUX.pincm(self.pincm).write_value(self.saved);
+        self.block.doeclr31_0().write(|w| w.set_dio(self.bit, true));
+    }
 }
 
 fn configure(

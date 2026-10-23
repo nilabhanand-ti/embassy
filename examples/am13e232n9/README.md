@@ -25,9 +25,9 @@ AM13E2x SDK 26.02.00.03 (`MCU205E1(001)_Sch.pdf`).
 The UART examples use UC4 on PA0 (TX) and PA1 (RX), wired to the XDS110 backchannel UART. It shows
 up on the host as the "XDS110 Class Application/User UART" port; open it at 115200 baud, 8N1.
 
-**These examples build, but have not been run on an LP-AM13E232 yet.** The HAL they use is the one
-tested on the LP-AM13E230 (`examples/am13e23019`): the AM13E232x has the same GPIO, DMA, timers,
-UNICOMM and watchdog blocks, checked register by register against its SVD.
+`uart`, `uart_buffered`, `selftest` and `wwdt` pass `hil_test.py` on an LP-AM13E232. The
+AM13E232x has the same GPIO, DMA, timers, UNICOMM and watchdog blocks as the AM13E230x
+(`examples/am13e23019`), checked register by register against its SVD.
 
 ## Flashing
 
@@ -62,4 +62,6 @@ python hil_test.py COM6
 * The parts run from SYSOSC at 32 MHz, the reset configuration. Clock configuration (SYSPLL, HFXT)
   is not implemented yet.
 * The AM13E232x SDK gives 2 NVIC priority bits (the AM13E230x SDK 4), so the PAC uses 2.
+* On the LP-AM13E232 the backchannel line reads low while PA0 is undriven, during reset and boot,
+  so the host usually receives one stray byte (`0x80`) before the first output after a reset.
 * `defmt` over RTT needs a probe-rs supported probe, so the examples report over the UART instead.

@@ -67,7 +67,12 @@ def test_uart(port):
     capture.close()
     out = capture.text()
 
-    greeting = "Hello Embassy World from the AM13E230!\r\n" in out
+    # DSLite resets the device when it connects, so the image that was on it before may print
+    # first. Only the output after the last greeting is from the new image.
+    start = out.rfind("Hello Embassy World from the AM13E230!\r\n")
+    greeting = start >= 0
+    if greeting:
+        out = out[start:]
     uptimes = [int(t) for t in re.findall(r"uptime: (\d+) ms", out)]
     # The three readings are taken one second apart by the time driver (TIMG4 on LFCLK).
     steps = [b - a for a, b in zip(uptimes, uptimes[1:])]

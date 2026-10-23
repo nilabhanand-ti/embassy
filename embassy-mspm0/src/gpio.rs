@@ -931,7 +931,7 @@ const DISCONNECT_PF: u8 = 0;
 /// The pin function for the GPIO peripheral.
 ///
 /// This is fixed to `1` for every part.
-const GPIO_PF: u8 = 1;
+pub(crate) const GPIO_PF: u8 = 1;
 
 macro_rules! impl_pin {
     ($name: ident, $port: expr, $pin_num: expr) => {
