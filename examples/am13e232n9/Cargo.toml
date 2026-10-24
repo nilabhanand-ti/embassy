@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
-embassy-mspm0 = { version = "0.1.0", path = "../../embassy-mspm0", features = ["am13e232n9pdt", "rt", "time-driver-any", "unstable-pac"] }
+embassy-am13 = { version = "0.1.0", path = "../../embassy-am13", features = ["am13e232n9pdt", "rt", "time-driver-any", "unstable-pac"] }
 embassy-executor = { version = "0.10.0", path = "../../embassy-executor", features = ["platform-cortex-m", "executor-thread"] }
 embassy-time = { version = "0.5.1", path = "../../embassy-time" }
 embassy-futures = { version = "0.1.2", path = "../../embassy-futures" }

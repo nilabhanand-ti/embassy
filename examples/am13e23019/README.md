@@ -16,7 +16,15 @@ cargo run --release --bin uart
 | `uart` | Blocking UART on the XDS110 backchannel: a greeting, the uptime, then an echo. |
 | `uart_buffered` | Interrupt driven (buffered, async) UART echo, with a second task blinking LED4. |
 | `wwdt` | The window watchdog resetting the device, and the reset cause read back. |
-| `selftest` | On-target checks of DMA, GPIO edge interrupts and the time driver. |
+| `adc` | ADC0: the temperature sensor, VDDA and the analog input PA28, once a second. |
+| `pwm` | PWM on TIMG12 channel 1, PA27: a 1 kHz duty cycle sweep. |
+| `spi` | SPI controller on UC3 (SCLK PB5, PICO PB10, POCI PA20): a 4 byte transfer once a second. Connect PB10 to PA20 to read back what is sent. |
+| `i2c` | I2C controller on UC2 (SCL PA23, SDA PA22): a bus scan. |
+| `selftest` | On-target checks needing no wiring: DMA, GPIO edge interrupts, SPI (internal loopback), I2C (bus idle, NACK), ADC (internal channels), PWM (duty cycle sampled on the pad) and the time driver. |
+
+`adc`, `pwm`, `spi`, `i2c` and the matching `selftest` checks were run on an LP-AM13E232 (see
+`examples/am13e232n9`); on the LP-AM13E230 they build but have not been run yet. The SPI and I2C
+pins are those of the SDK's SPI and I2C examples for this LaunchPad.
 
 The UART examples use UC4 on PA0 (TX) and PA1 (RX), wired to the XDS110 backchannel UART. It shows
 up on the host as the "XDS110 Class Application/User UART" port; open it at 115200 baud, 8N1.

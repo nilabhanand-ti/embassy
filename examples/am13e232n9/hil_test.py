@@ -9,6 +9,7 @@ the XDS110 backchannel UART. Needs pyserial.
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -41,13 +42,21 @@ class Capture:
         self.thread.join()
 
 
+CHIP = "AM13E232N9"
+ELF = os.path.join("target", "thumbv8m.main-none-eabihf", "release")
+
+
 def flash(example):
-    subprocess.run(
-        ["cargo", "run", "--release", "--bin", example],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    """Build an example, program it and start it: with probe-rs if it is installed (it keeps
+    `probe-rs run` attached, so download and reset are run separately), otherwise with DSLite."""
+    quiet = dict(check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["cargo", "build", "--release", "--bin", example], **quiet)
+    elf = os.path.join(ELF, example)
+    if shutil.which("probe-rs"):
+        subprocess.run(["probe-rs", "download", "--chip", CHIP, elf], **quiet)
+        subprocess.run(["probe-rs", "reset", "--chip", CHIP], **quiet)
+    else:
+        subprocess.run([sys.executable, "flash.py", elf], **quiet)
 
 
 def wait_for(capture, pattern, timeout):
@@ -132,6 +141,19 @@ def test_wwdt(port):
     return m is not None and pets >= 5
 
 
+def test_ethercat(port):
+    capture = Capture(port)
+    flash("ethercat")
+    m = wait_for(capture, r"ethercat: (\d) of 2 PHYs found\r\n", 15)
+    capture.close()
+
+    for line in capture.text().splitlines():
+        if line.startswith("PHY"):
+            print(f"  {line}")
+    print(f"ethercat: {m.group(0).strip() if m else 'no result'}")
+    return m is not None and m.group(1) == "2"
+
+
 def main():
     with serial.Serial(PORT, 115200, timeout=0.1) as port:
         results = {
@@ -139,6 +161,7 @@ def main():
             "uart_buffered": test_uart_buffered(port),
             "selftest": test_selftest(port),
             "wwdt": test_wwdt(port),
+            "ethercat": test_ethercat(port),
         }
 
     for name, passed in results.items():

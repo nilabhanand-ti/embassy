@@ -8,14 +8,14 @@
 
 use core::fmt::Write;
 
+use embassy_am13::uart::{Config, Uart};
 use embassy_executor::Spawner;
-use embassy_mspm0::uart::{Config, Uart};
 use embassy_time::{Instant, Timer};
 use panic_halt as _;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) -> ! {
-    let p = embassy_mspm0::init(Default::default());
+    let p = embassy_am13::init(Default::default());
 
     let instance = p.UC4;
     let tx = p.PA0;

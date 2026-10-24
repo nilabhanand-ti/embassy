@@ -16,16 +16,22 @@ cargo run --release --bin uart
 | `uart` | Blocking UART on the XDS110 backchannel: a greeting, the uptime, then an echo. |
 | `uart_buffered` | Interrupt driven (buffered, async) UART echo, with a second task blinking USER_LED0. |
 | `wwdt` | The window watchdog resetting the device, and the reset cause read back. |
-| `selftest` | On-target checks of DMA, GPIO edge interrupts (port D) and the time driver. |
+| `adc` | ADC0: the temperature sensor, VDDA and the analog input PB28 (J3.28), once a second. |
+| `pwm` | PWM on TIMG12 channel 1, PA27 (J3.23): a 1 kHz duty cycle sweep. |
+| `spi` | SPI controller on UC0 (SCLK PD7, PICO PD8, POCI PD6 on J2): a 4 byte transfer once a second. Jumper J2.17 to J2.18 to read back what is sent. |
+| `i2c` | I2C controller on UC2 (SCL PA23, SDA PA22 on J1): a bus scan. |
+| `ethercat` | Placeholder for EtherCAT (folder `src/bin/ethercat`): resets the two DP83826 PHYs and reads their IDs over MDIO. See its README. |
+| `selftest` | On-target checks needing no wiring: DMA, GPIO edge interrupts (port D), SPI (internal loopback), I2C (bus idle, NACK), ADC (internal channels), PWM (duty cycle sampled on the pad) and the time driver. |
 
 The LP-AM13E232 carries an AM13E232N9 in the 128-pin TQFP (`AM13E232N91TPDTR`), so the
-`embassy-mspm0` feature is `am13e232n9pdt`. The pins are taken from the LaunchPad schematic in the
+`embassy-am13` feature is `am13e232n9pdt`. The pins are taken from the LaunchPad schematic in the
 AM13E2x SDK 26.02.00.03 (`MCU205E1(001)_Sch.pdf`).
 
 The UART examples use UC4 on PA0 (TX) and PA1 (RX), wired to the XDS110 backchannel UART. It shows
 up on the host as the "XDS110 Class Application/User UART" port; open it at 115200 baud, 8N1.
 
-`uart`, `uart_buffered`, `selftest` and `wwdt` pass `hil_test.py` on an LP-AM13E232. The
+`uart`, `uart_buffered`, `selftest`, `wwdt` and `ethercat` are run by `hil_test.py` on an
+LP-AM13E232. The
 AM13E232x has the same GPIO, DMA, timers, UNICOMM and watchdog blocks as the AM13E230x
 (`examples/am13e23019`), checked register by register against its SVD.
 
@@ -49,8 +55,8 @@ in your own projects.
 
 ## Hardware in the loop
 
-`hil_test.py` flashes `uart`, `uart_buffered`, `selftest` and `wwdt` one after the other and checks
-their output on the backchannel UART. It needs pyserial (`pip install pyserial`).
+`hil_test.py` flashes `uart`, `uart_buffered`, `selftest`, `wwdt` and `ethercat` one after the
+other and checks their output on the backchannel UART. It needs pyserial (`pip install pyserial`).
 ```
 python hil_test.py COM6
 ```

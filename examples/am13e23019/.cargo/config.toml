@@ -1,7 +1,10 @@
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
-# probe-rs has no AM13E230x target yet, so the examples are flashed with DSLite from Code Composer
-# Studio or UniFlash through the LaunchPad's XDS110. Set CCS_ROOT if CCS is not in C:/ti/ccs2101/ccs.
-runner = "python flash.py"
+# probe-rs supports the AM13E2x from the nilabhanand-ti fork (branch am13e2), through the
+# LaunchPad's XDS110 in CMSIS-DAP mode:
+#   cargo install --git https://github.com/nilabhanand-ti/probe-rs --branch am13e2 probe-rs-tools --locked
+runner = "probe-rs run --chip AM13E23019"
+# Without it, flash with DSLite from Code Composer Studio or UniFlash (see flash.py):
+# runner = "python flash.py"
 
 [build]
 target = "thumbv8m.main-none-eabihf"

@@ -9,6 +9,7 @@ the XDS110 backchannel UART. Needs pyserial.
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -41,13 +42,21 @@ class Capture:
         self.thread.join()
 
 
+CHIP = "AM13E23019"
+ELF = os.path.join("target", "thumbv8m.main-none-eabihf", "release")
+
+
 def flash(example):
-    subprocess.run(
-        ["cargo", "run", "--release", "--bin", example],
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    """Build an example, program it and start it: with probe-rs if it is installed (it keeps
+    `probe-rs run` attached, so download and reset are run separately), otherwise with DSLite."""
+    quiet = dict(check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["cargo", "build", "--release", "--bin", example], **quiet)
+    elf = os.path.join(ELF, example)
+    if shutil.which("probe-rs"):
+        subprocess.run(["probe-rs", "download", "--chip", CHIP, elf], **quiet)
+        subprocess.run(["probe-rs", "reset", "--chip", CHIP], **quiet)
+    else:
+        subprocess.run([sys.executable, "flash.py", elf], **quiet)
 
 
 def wait_for(capture, pattern, timeout):

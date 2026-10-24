@@ -6,10 +6,10 @@
 #![no_std]
 #![no_main]
 
+use embassy_am13::gpio::{Level, Output};
+use embassy_am13::uart::{self, BufferedUart, Config};
+use embassy_am13::{bind_interrupts, peripherals};
 use embassy_executor::Spawner;
-use embassy_mspm0::gpio::{Level, Output};
-use embassy_mspm0::uart::{self, BufferedUart, Config};
-use embassy_mspm0::{bind_interrupts, peripherals};
 use embassy_time::Timer;
 use embedded_io_async::Write;
 use panic_halt as _;
@@ -30,7 +30,7 @@ async fn blink(mut led: Output<'static>) {
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) -> ! {
-    let p = embassy_mspm0::init(Default::default());
+    let p = embassy_am13::init(Default::default());
 
     spawner.spawn(blink(Output::new(p.PD0, Level::High)).unwrap());
 

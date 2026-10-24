@@ -8,15 +8,15 @@
 
 use core::fmt::Write;
 
+use embassy_am13::Config;
+use embassy_am13::gpio::{Input, Level, Output, Pull};
+use embassy_am13::uart::{self, UartTx};
 use embassy_executor::Spawner;
-use embassy_mspm0::Config;
-use embassy_mspm0::gpio::{Input, Level, Output, Pull};
-use embassy_mspm0::uart::{self, UartTx};
 use panic_halt as _;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) -> ! {
-    let p = embassy_mspm0::init(Config::default());
+    let p = embassy_am13::init(Config::default());
 
     let mut uart = UartTx::new_blocking(p.UC4, p.PA0, uart::Config::default()).unwrap();
 

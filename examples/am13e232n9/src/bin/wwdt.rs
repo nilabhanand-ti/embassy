@@ -9,20 +9,20 @@
 
 use core::fmt::Write;
 
+use embassy_am13::uart::{self, UartTx};
+use embassy_am13::wwdt::{ClosedWindowPercentage, Config, Timeout, Watchdog};
 use embassy_executor::Spawner;
-use embassy_mspm0::uart::{self, UartTx};
-use embassy_mspm0::wwdt::{ClosedWindowPercentage, Config, Timeout, Watchdog};
 use embassy_time::Timer;
 use panic_halt as _;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) -> ! {
-    let p = embassy_mspm0::init(Default::default());
+    let p = embassy_am13::init(Default::default());
 
     let mut uart = UartTx::new_blocking(p.UC4, p.PA0, uart::Config::default()).unwrap();
 
     let mut line = heapless::String::<64>::new();
-    let _ = write!(line, "reset cause: {:?}\r\n", embassy_mspm0::read_reset_cause());
+    let _ = write!(line, "reset cause: {:?}\r\n", embassy_am13::read_reset_cause());
     uart.blocking_write(line.as_bytes()).unwrap();
 
     let mut conf = Config::default();
