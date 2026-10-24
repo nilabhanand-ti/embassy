@@ -13,12 +13,7 @@ use crate::Peri;
 use crate::gpio::{AnyPin, PfType, Pull, SealedPin};
 use crate::interrupt::{Interrupt, InterruptExt};
 use crate::mode::{Blocking, Mode};
-#[cfg(not(unicomm))]
 use crate::pac::uart::{Uart as Regs, vals};
-// The UART of a unicomm instance has the registers of the MSPM0 UART, without power and reset
-// (those are in the unicomm wrapper, see `enable`) and without IrDA or Manchester encoding.
-#[cfg(unicomm)]
-use crate::pac::unicommuart::{Unicommuart as Regs, vals};
 
 /// The clock source for the UART.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -27,22 +22,15 @@ pub enum ClockSel {
     /// Use the low frequency clock.
     ///
     /// The LFCLK runs at 32.768 kHz.
-    #[cfg(not(unicomm))]
     LfClk,
 
     /// Use the middle frequency clock.
     ///
     /// The MCLK runs at 4 MHz.
-    #[cfg(not(unicomm))]
     MfClk,
     // BusClk,
     // BusClk depends on the timer's power domain.
     // This will be implemented later.
-    /// Use MCLK/2, the only clock of a unicomm UART.
-    ///
-    /// It runs at 32 MHz while MCLK runs from SYSOSC, the reset configuration.
-    #[cfg(unicomm)]
-    BusClk,
 }
 
 #[non_exhaustive]
@@ -144,8 +132,6 @@ pub struct Config {
 
     // TODO: majority voting
     /// If true: the built-in FIFO is enabled.
-    ///
-    /// The FIFOs of a unicomm UART are always enabled and this is ignored.
     pub fifo_enable: bool,
 
     // TODO: glitch suppression
@@ -177,10 +163,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            #[cfg(not(unicomm))]
             clock_source: ClockSel::MfClk,
-            #[cfg(unicomm)]
-            clock_source: ClockSel::BusClk,
             baudrate: 115200,
             data_bits: DataBits::DataBits8,
             stop_bits: StopBits::Stop1,
@@ -596,9 +579,6 @@ pub trait RtsPin<T: Instance>: crate::gpio::Pin {
 pub(crate) struct Info {
     pub(crate) regs: Regs,
     pub(crate) interrupt: Interrupt,
-    /// The wrapper of the unicomm instance, which holds power, reset and the mode selection.
-    #[cfg(unicomm)]
-    pub(crate) unicomm: crate::pac::unicomm::Unicomm,
 }
 
 pub(crate) struct State {
@@ -636,8 +616,7 @@ impl<'d, M: Mode> UartRx<'d, M> {
     fn enable_and_configure(&mut self, config: &Config) -> Result<(), ConfigError> {
         let info = self.info;
 
-        let _rts = IdleOutput::hold(&self.rts);
-        enable(info);
+        enable(info.regs);
         configure(info, self.state, config, true, self.rts.is_some(), false, false)?;
 
         Ok(())
@@ -667,8 +646,7 @@ impl<'d, M: Mode> UartTx<'d, M> {
         let info = self.info;
         let state = self.state;
 
-        let _tx = IdleOutput::hold(&self.tx);
-        enable(info);
+        enable(info.regs);
         configure(info, state, config, false, false, true, self.cts.is_some())?;
 
         Ok(())
@@ -712,8 +690,7 @@ impl<'d, M: Mode> Uart<'d, M> {
         let info = self.rx.info;
         let state = self.rx.state;
 
-        let idle = (IdleOutput::hold(&self.tx.tx), IdleOutput::hold(&self.rx.rts));
-        enable(info);
+        enable(info.regs);
         configure(
             info,
             state,
@@ -723,7 +700,6 @@ impl<'d, M: Mode> Uart<'d, M> {
             true,
             self.tx.cts.is_some(),
         )?;
-        drop(idle);
 
         info.interrupt.unpend();
         unsafe { info.interrupt.enable() };
@@ -750,9 +726,8 @@ impl Config {
     }
 }
 
-#[cfg(not(unicomm))]
-fn enable(info: &Info) {
-    let gprcm = info.regs.gprcm(0);
+fn enable(regs: Regs) {
+    let gprcm = regs.gprcm(0);
 
     gprcm.rstctl().write(|w| {
         w.set_resetstkyclr(true);
@@ -764,72 +739,6 @@ fn enable(info: &Info) {
         w.set_enable(true);
         w.set_key(vals::PwrenKey::Key);
     });
-}
-
-#[cfg(unicomm)]
-fn enable(info: &Info) {
-    use crate::pac::unicomm::vals as uc;
-
-    let gprcm = info.unicomm.gprcm(0);
-
-    gprcm.rstctl().write(|w| {
-        w.set_resetstkyclr(true);
-        w.set_resetassert(true);
-        w.set_key(uc::ResetKey::Key);
-    });
-
-    gprcm.pwren().write(|w| {
-        w.set_enable(true);
-        w.set_key(uc::PwrenKey::Key);
-    });
-
-    // The registers of the instance are not accessible for a few cycles after power up. The SDK
-    // waits 16 cycles.
-    cortex_m::asm::delay(16);
-
-    info.unicomm.ipmode().write(|w| w.set_select(uc::Select::Uart));
-}
-
-/// Holds an output of the UART (TX or RTS) at its idle level through GPIO while the UART is powered
-/// up, reset and configured, and gives the pin back to the UART when dropped.
-///
-/// The constructors connect the pins before the UART is enabled, and until then the UART drives its
-/// outputs low. The other end takes that for a start bit: it receives a stray byte and, when the
-/// first characters follow at once, can lose the character framing for the rest of the string.
-pub(crate) struct IdleOutput {
-    pincm: usize,
-    saved: crate::pac::iomux::regs::Pincm,
-    block: crate::pac::gpio::Gpio,
-    bit: usize,
-}
-
-impl IdleOutput {
-    pub(crate) fn hold(pin: &Option<Peri<'_, AnyPin>>) -> Option<Self> {
-        let pin = pin.as_ref()?;
-        let pincm = pin._pin_cm() as usize;
-        let saved = crate::pac::IOMUX.pincm(pincm).read();
-        let block = pin.block();
-        let bit = pin.bit_index();
-
-        block.doutset31_0().write(|w| w.set_dio(bit, true));
-        block.doeset31_0().write(|w| w.set_dio(bit, true));
-        // INV is kept, so an inverted output idles low.
-        crate::pac::IOMUX.pincm(pincm).modify(|w| w.set_pf(crate::gpio::GPIO_PF));
-
-        Some(Self {
-            pincm,
-            saved,
-            block,
-            bit,
-        })
-    }
-}
-
-impl Drop for IdleOutput {
-    fn drop(&mut self) {
-        crate::pac::IOMUX.pincm(self.pincm).write_value(self.saved);
-        self.block.doeclr31_0().write(|w| w.set_dio(self.bit, true));
-    }
 }
 
 fn configure(
@@ -849,31 +758,21 @@ fn configure(
 
     // SLAU846B says that clocks should be enabled before disabling the uart.
     r.clksel().write(|w| match config.clock_source {
-        #[cfg(not(unicomm))]
         ClockSel::LfClk => {
             w.set_lfclk_sel(true);
             w.set_mfclk_sel(false);
             w.set_busclk_sel(false);
         }
-        #[cfg(not(unicomm))]
         ClockSel::MfClk => {
             w.set_mfclk_sel(true);
             w.set_lfclk_sel(false);
             w.set_busclk_sel(false);
         }
-        #[cfg(unicomm)]
-        ClockSel::BusClk => {
-            w.set_busclk_sel(true);
-        }
     });
 
     let clock = match config.clock_source {
-        #[cfg(not(unicomm))]
         ClockSel::LfClk => 32768,
-        #[cfg(not(unicomm))]
         ClockSel::MfClk => 4_000_000,
-        #[cfg(unicomm)]
-        ClockSel::BusClk => crate::sysctl::mclk_div2_frequency(),
     };
 
     state.clock.store(clock, Ordering::Relaxed);
@@ -884,13 +783,11 @@ fn configure(
         w.set_rxe(enable_rx | enable_tx);
         w.set_txe(enable_tx);
         // RXD_OUT_EN and TXD_OUT_EN?
-        #[cfg(not(unicomm))]
         w.set_menc(false);
         w.set_mode(vals::Mode::Uart);
         w.set_rtsen(enable_rts);
         w.set_ctsen(enable_cts);
         // oversampling is set later
-        #[cfg(not(unicomm))]
         w.set_fen(config.fifo_enable);
         // TODO: config
         w.set_majvote(false);
@@ -899,17 +796,8 @@ fn configure(
 
     info.regs.ifls().modify(|w| {
         // TODO: Need power domain info for other options.
-        #[cfg(not(unicomm))]
-        {
-            w.set_txiflsel(vals::Iflssel::AtLeastOne);
-            w.set_rxiflsel(vals::Iflssel::AtLeastOne);
-        }
-        // The unicomm UART encodes the levels differently, and separately for TX and RX.
-        #[cfg(unicomm)]
-        {
-            w.set_txiflsel(vals::Txiflsel::NotFull);
-            w.set_rxiflsel(vals::Rxiflsel::NotEmpty);
-        }
+        w.set_txiflsel(vals::Iflssel::AtLeastOne);
+        w.set_rxiflsel(vals::Iflssel::AtLeastOne);
     });
 
     info.regs.lcrh().modify(|w| {
@@ -1001,7 +889,6 @@ fn set_baudrate_inner(regs: Regs, clock: u32, baudrate: u32) -> Result<(), Confi
     // FBRD is at most a 6-bit number.
     const MAX_FBRD: u8 = 2_u8.pow(6);
 
-    #[cfg(not(unicomm))]
     const DIVS: [(u8, vals::Clkdiv); 8] = [
         (1, vals::Clkdiv::DivBy1),
         (2, vals::Clkdiv::DivBy2),
@@ -1012,10 +899,6 @@ fn set_baudrate_inner(regs: Regs, clock: u32, baudrate: u32) -> Result<(), Confi
         (7, vals::Clkdiv::DivBy7),
         (8, vals::Clkdiv::DivBy8),
     ];
-    // The unicomm UART divides by RATIO + 1, up to 64. The dividers above 8 are not needed for
-    // the baud rates the BRD can reach.
-    #[cfg(unicomm)]
-    const DIVS: [(u8, u8); 8] = [(1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5), (7, 6), (8, 7)];
 
     // Quoting from SLAU 846 section 18.2.3.4:
     // "Select oversampling by 3 or 8 to achieve higher speed with UARTclk/8 or UARTclk/3. In this case
@@ -1030,16 +913,12 @@ fn set_baudrate_inner(regs: Regs, clock: u32, baudrate: u32) -> Result<(), Confi
     const OVS: [(u8, vals::Hse); 3] = [(16, vals::Hse::Ovs16), (8, vals::Hse::Ovs8), (3, vals::Hse::Ovs3)];
 
     // 3x oversampling is not supported with manchester coding, DALI or IrDA.
-    #[cfg(not(unicomm))]
     let x3_invalid = {
         let ctl0 = regs.ctl0().read();
         let irctl = regs.irctl().read();
 
         ctl0.menc() || matches!(ctl0.mode(), vals::Mode::Dali) || irctl.iren()
     };
-    // There is no Manchester encoding or IrDA on a unicomm UART.
-    #[cfg(unicomm)]
-    let x3_invalid = matches!(regs.ctl0().read().mode(), vals::Mode::Dali);
     let mut found = None;
 
     'outer: for &(oversampling, hse_value) in &OVS {
@@ -1145,28 +1024,13 @@ fn read_with_error(r: Regs) -> Result<u8, Error> {
         return Err(Error::Parity);
     } else if rx.brkerr() {
         return Err(Error::Break);
-    } else if rx_overrun(r, &rx) {
+    } else if rx.ovrerr() {
         return Err(Error::Overrun);
     } else if rx.nerr() {
         return Err(Error::Noise);
     }
 
     Ok(rx.data())
-}
-
-#[cfg(not(unicomm))]
-fn rx_overrun(_r: Regs, rx: &crate::pac::uart::regs::Rxdata) -> bool {
-    rx.ovrerr()
-}
-
-/// A unicomm UART has no overrun flag in RXDATA; the overrun is only reported in RIS.
-#[cfg(unicomm)]
-fn rx_overrun(r: Regs, _rx: &crate::pac::unicommuart::regs::Rxdata) -> bool {
-    let overrun = r.cpu_int(0).ris().read().ovrerr();
-    if overrun {
-        r.cpu_int(0).iclr().write(|w| w.set_ovrerr(true));
-    }
-    overrun
 }
 
 /// This function assumes CTL0.ENABLE is set (for errata cases).
@@ -1196,26 +1060,15 @@ pub(crate) trait SealedInstance {
 
 macro_rules! impl_uart_instance {
     ($instance: ident) => {
-        impl_uart_instance!(@impl $instance, Info {
-            regs: crate::pac::$instance,
-            interrupt: crate::interrupt::typelevel::$instance::IRQ,
-        });
-    };
-    // A unicomm instance: `$uart` holds its UART registers.
-    ($instance: ident, $uart: ident) => {
-        impl_uart_instance!(@impl $instance, Info {
-            regs: crate::pac::$uart,
-            interrupt: crate::interrupt::typelevel::$instance::IRQ,
-            unicomm: crate::pac::$instance,
-        });
-    };
-    (@impl $instance: ident, $info: expr) => {
         impl crate::uart::SealedInstance for crate::peripherals::$instance {
             fn info() -> &'static crate::uart::Info {
                 use crate::interrupt::typelevel::Interrupt;
                 use crate::uart::Info;
 
-                const INFO: Info = $info;
+                const INFO: Info = Info {
+                    regs: crate::pac::$instance,
+                    interrupt: crate::interrupt::typelevel::$instance::IRQ,
+                };
                 &INFO
             }
 

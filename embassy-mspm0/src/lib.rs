@@ -12,8 +12,6 @@
 pub(crate) mod fmt;
 mod macros;
 
-// The AM13 ADC is a different peripheral.
-#[cfg(not(am13))]
 pub mod adc;
 pub mod dma;
 #[cfg(feature = "_executor")]
@@ -24,8 +22,6 @@ pub mod gpio;
 pub mod i2c;
 #[cfg(not(unicomm))]
 pub mod i2c_target;
-#[cfg(all(feature = "low-power", am13))]
-compile_error!("the `low-power` feature is not supported on the AM13E2x yet");
 #[cfg(feature = "low-power")]
 pub mod low_power;
 #[cfg(any(mspm0g150x, mspm0g151x, mspm0g350x, mspm0g351x))]
@@ -34,8 +30,8 @@ pub mod sysctl;
 pub mod tim;
 #[cfg(any(mspm0g150x, mspm0g151x, mspm0g350x, mspm0g351x, mspm0l122x, mspm0l222x))]
 pub mod trng;
-// Unicomm instances are UARTs where the UART registers are described (AM13E2x).
-#[cfg(any(not(unicomm), unicomm_uart))]
+// TODO: UART unicomm
+#[cfg(not(unicomm))]
 pub mod uart;
 pub mod wwdt;
 
@@ -188,37 +184,30 @@ pub fn init(config: Config) -> Peripherals {
 
         // TODO: Further clock configuration
 
-        // The AM13E2x has neither MFCLK nor a BOR threshold. It runs from SYSOSC (32 MHz) out
-        // of reset, which is what the HAL assumes.
-        #[cfg(not(am13))]
-        {
-            pac::SYSCTL.mclkcfg().modify(|w| {
-                // Enable MFCLK
-                w.set_usemftick(true);
-                // MDIV must be disabled if MFCLK is enabled.
-                w.set_mdiv(0);
-            });
+        pac::SYSCTL.mclkcfg().modify(|w| {
+            // Enable MFCLK
+            w.set_usemftick(true);
+            // MDIV must be disabled if MFCLK is enabled.
+            w.set_mdiv(0);
+        });
 
-            // Enable MFCLK for peripheral use
-            //
-            // TODO: Optional?
-            pac::SYSCTL.genclken().modify(|w| {
-                w.set_mfpclken(true);
-            });
+        // Enable MFCLK for peripheral use
+        //
+        // TODO: Optional?
+        pac::SYSCTL.genclken().modify(|w| {
+            w.set_mfpclken(true);
+        });
 
-            // TODO: Errata PCMU_ERR_03 states that BOR thresholds other than 0 don't work in STANDBY.
-            pac::SYSCTL.borthreshold().modify(|w| {
-                w.set_level(0);
-            });
-        }
+        // TODO: Errata PCMU_ERR_03 states that BOR thresholds other than 0 don't work in STANDBY.
+        pac::SYSCTL.borthreshold().modify(|w| {
+            w.set_level(0);
+        });
 
         gpio::init(pac::GPIOA);
         #[cfg(gpio_pb)]
         gpio::init(pac::GPIOB);
         #[cfg(gpio_pc)]
         gpio::init(pac::GPIOC);
-        #[cfg(gpio_pd)]
-        gpio::init(pac::GPIOD);
 
         _generated::enable_group_interrupts(cs);
 
@@ -226,19 +215,6 @@ pub fn init(config: Config) -> Peripherals {
         unsafe {
             use crate::_generated::interrupt::typelevel::Interrupt;
             crate::interrupt::typelevel::GPIOA::enable();
-        }
-
-        // Every port has an interrupt of its own.
-        #[cfg(am13)]
-        unsafe {
-            use crate::_generated::interrupt::typelevel::Interrupt;
-            crate::interrupt::typelevel::GPIOA::enable();
-            #[cfg(gpio_pb)]
-            crate::interrupt::typelevel::GPIOB::enable();
-            #[cfg(gpio_pc)]
-            crate::interrupt::typelevel::GPIOC::enable();
-            #[cfg(gpio_pd)]
-            crate::interrupt::typelevel::GPIOD::enable();
         }
 
         // SAFETY: Peripherals::take_with_cs will only be run once or panic.

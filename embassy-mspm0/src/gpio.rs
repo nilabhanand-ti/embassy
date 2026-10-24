@@ -8,10 +8,7 @@ use maitake_sync::WaitMap;
 
 use crate::pac::gpio::vals::*;
 use crate::pac::gpio::{self};
-#[cfg(all(
-    feature = "rt",
-    any(gpioa_interrupt, gpiob_interrupt, gpioc_interrupt, gpiod_interrupt)
-))]
+#[cfg(all(feature = "rt", any(gpioa_interrupt, gpiob_interrupt)))]
 use crate::pac::interrupt;
 use crate::pac::{self};
 
@@ -67,10 +64,6 @@ pub enum Port {
     /// Port C.
     #[cfg(gpio_pc)]
     PortC = 2,
-
-    /// Port D.
-    #[cfg(gpio_pd)]
-    PortD = 3,
 }
 
 /// GPIO flexible pin.
@@ -931,7 +924,7 @@ const DISCONNECT_PF: u8 = 0;
 /// The pin function for the GPIO peripheral.
 ///
 /// This is fixed to `1` for every part.
-pub(crate) const GPIO_PF: u8 = 1;
+const GPIO_PF: u8 = 1;
 
 macro_rules! impl_pin {
     ($name: ident, $port: expr, $pin_num: expr) => {
@@ -1015,8 +1008,6 @@ pub(crate) trait SealedPin {
             1 => pac::GPIOB,
             #[cfg(gpio_pc)]
             2 => pac::GPIOC,
-            #[cfg(gpio_pd)]
-            3 => pac::GPIOD,
             _ => unreachable!(),
         }
     }
@@ -1088,19 +1079,6 @@ fn GPIOA() {
 #[interrupt]
 fn GPIOB() {
     irq_handler(pac::GPIOB, Port::PortB);
-}
-
-// The AM13E2x has an interrupt for every port.
-#[cfg(all(feature = "rt", gpioc_interrupt))]
-#[interrupt]
-fn GPIOC() {
-    irq_handler(pac::GPIOC, Port::PortC);
-}
-
-#[cfg(all(feature = "rt", gpiod_interrupt))]
-#[interrupt]
-fn GPIOD() {
-    irq_handler(pac::GPIOD, Port::PortD);
 }
 
 // These symbols are weakly defined as DefaultHandler and are called by the interrupt group implementation.
