@@ -58,5 +58,7 @@ rm -rf out/tests/stm32c071rb
 rm -rf out/tests/stm32f100rd
 rm -rf out/tests/stm32f107vc
 rm -rf out/tests/mspm0g3507
+rm -rf out/tests/am13e232n9
+rm -rf out/tests/am13e23019
 
 teleprobe client run -r out/tests
